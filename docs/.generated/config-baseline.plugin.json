@@ -7612,6 +7612,21 @@
       ],
       "label": "@openclaw/openai-provider Config",
       "help": "Plugin-defined config payload for openai.",
+      "hasChildren": true
+    },
+    {
+      "path": "plugins.entries.openai.config.personalityOverlay",
+      "kind": "plugin",
+      "type": "string",
+      "required": false,
+      "enumValues": [
+        "friendly",
+        "off"
+      ],
+      "defaultValue": "friendly",
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
       "hasChildren": false
     },
     {
@@ -11550,6 +11565,182 @@
       "hasChildren": false
     },
     {
+      "path": "plugins.entries.voice-call.config.realtime",
+      "kind": "plugin",
+      "type": "object",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": true
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.enabled",
+      "kind": "plugin",
+      "type": "boolean",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.instructions",
+      "kind": "plugin",
+      "type": "string",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.provider",
+      "kind": "plugin",
+      "type": "string",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.providers",
+      "kind": "plugin",
+      "type": "object",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": true
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.providers.*",
+      "kind": "plugin",
+      "type": "object",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.streamPath",
+      "kind": "plugin",
+      "type": "string",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools",
+      "kind": "plugin",
+      "type": "array",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": true
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*",
+      "kind": "plugin",
+      "type": "object",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": true
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*.description",
+      "kind": "plugin",
+      "type": "string",
+      "required": true,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*.name",
+      "kind": "plugin",
+      "type": "string",
+      "required": true,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*.parameters",
+      "kind": "plugin",
+      "type": "object",
+      "required": true,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": true
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*.parameters.properties",
+      "kind": "plugin",
+      "type": "object",
+      "required": true,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*.parameters.required",
+      "kind": "plugin",
+      "type": "array",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": true
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*.parameters.required.*",
+      "kind": "plugin",
+      "type": "string",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*.parameters.type",
+      "kind": "plugin",
+      "type": "string",
+      "required": true,
+      "enumValues": [
+        "object"
+      ],
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.realtime.tools.*.type",
+      "kind": "plugin",
+      "type": "string",
+      "required": true,
+      "enumValues": [
+        "function"
+      ],
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
       "path": "plugins.entries.voice-call.config.responseModel",
       "kind": "plugin",
       "type": "string",
@@ -11756,17 +11947,48 @@
       "deprecated": false,
       "sensitive": true,
       "tags": [
-        "advanced",
         "auth",
         "security"
       ],
-      "label": "OpenAI Realtime API Key",
       "hasChildren": false
     },
     {
       "path": "plugins.entries.voice-call.config.streaming.preStartTimeoutMs",
       "kind": "plugin",
       "type": "integer",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.streaming.provider",
+      "kind": "plugin",
+      "type": "string",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [
+        "advanced"
+      ],
+      "label": "Streaming Provider",
+      "hasChildren": false
+    },
+    {
+      "path": "plugins.entries.voice-call.config.streaming.providers",
+      "kind": "plugin",
+      "type": "object",
+      "required": false,
+      "deprecated": false,
+      "sensitive": false,
+      "tags": [],
+      "hasChildren": true
+    },
+    {
+      "path": "plugins.entries.voice-call.config.streaming.providers.*",
+      "kind": "plugin",
+      "type": "object",
       "required": false,
       "deprecated": false,
       "sensitive": false,
@@ -11804,11 +12026,7 @@
       "required": false,
       "deprecated": false,
       "sensitive": false,
-      "tags": [
-        "advanced",
-        "media"
-      ],
-      "label": "Realtime STT Model",
+      "tags": [],
       "hasChildren": false
     },
     {
@@ -11816,9 +12034,6 @@
       "kind": "plugin",
       "type": "string",
       "required": false,
-      "enumValues": [
-        "openai-realtime"
-      ],
       "deprecated": false,
       "sensitive": false,
       "tags": [],

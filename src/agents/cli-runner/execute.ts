@@ -9,6 +9,7 @@ import { prependBootstrapPromptWarning } from "../bootstrap-budget.js";
 import { parseCliOutput, type CliOutput } from "../cli-output.js";
 import { FailoverError, resolveFailoverStatus } from "../failover-error.js";
 import { classifyFailoverReason } from "../pi-embedded-helpers.js";
+import { injectClaudeCliArgs } from "./claude-cli-defaults.js";
 import {
   appendImagePathsToPrompt,
   buildCliSupervisorScopeKey,
@@ -123,7 +124,8 @@ export async function executePreparedCliRun(
     prompt,
   });
   const stdinPayload = stdin ?? "";
-  const baseArgs = useResume ? (backend.resumeArgs ?? backend.args ?? []) : (backend.args ?? []);
+  const rawBaseArgs = useResume ? (backend.resumeArgs ?? backend.args ?? []) : (backend.args ?? []);
+  const baseArgs = injectClaudeCliArgs(rawBaseArgs, context.backendResolved.id, backend);
   const resolvedArgs = useResume
     ? baseArgs.map((entry) => entry.replaceAll("{sessionId}", resolvedSessionId ?? ""))
     : baseArgs;

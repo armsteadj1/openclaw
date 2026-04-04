@@ -1,7 +1,7 @@
 import type { ImageContent } from "@mariozechner/pi-ai";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { MAX_IMAGE_BYTES } from "../media/constants.js";
-import { buildCliArgs, loadPromptRefImages } from "./cli-runner/helpers.js";
+import { buildCliArgs, loadPromptRefImages, resolveSessionIdToSend } from "./cli-runner/helpers.js";
 import * as promptImageUtils from "./pi-embedded-runner/run/images.js";
 import type { SandboxFsBridge } from "./sandbox/fs-bridge.js";
 import * as toolImages from "./tool-images.js";
@@ -100,6 +100,26 @@ describe("loadPromptRefImages", () => {
       maxBytes: MAX_IMAGE_BYTES,
     });
     expect(result).toEqual([loadedImage]);
+  });
+});
+
+describe("resolveSessionIdToSend", () => {
+  it('returns no session id when sessionMode is "managed"', () => {
+    const result = resolveSessionIdToSend({
+      backend: { command: "claude", sessionMode: "managed" },
+      cliSessionId: undefined,
+    });
+    expect(result.sessionId).toBeUndefined();
+    expect(result.isNew).toBe(true);
+  });
+
+  it('returns no session id when sessionMode is "managed" even with existing session', () => {
+    const result = resolveSessionIdToSend({
+      backend: { command: "claude", sessionMode: "managed" },
+      cliSessionId: "existing-id",
+    });
+    expect(result.sessionId).toBeUndefined();
+    expect(result.isNew).toBe(false);
   });
 });
 

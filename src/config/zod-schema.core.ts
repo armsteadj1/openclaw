@@ -525,7 +525,7 @@ export const CliBackendSchema = z
     sessionArgs: z.array(z.string()).optional(),
     resumeArgs: z.array(z.string()).optional(),
     sessionMode: z
-      .union([z.literal("always"), z.literal("existing"), z.literal("none")])
+      .union([z.literal("always"), z.literal("existing"), z.literal("none"), z.literal("managed")])
       .optional(),
     sessionIdFields: z.array(z.string()).optional(),
     systemPromptArg: z.string().optional(),
@@ -536,6 +536,7 @@ export const CliBackendSchema = z
     imageArg: z.string().optional(),
     imageMode: z.union([z.literal("repeat"), z.literal("list")]).optional(),
     serialize: z.boolean().optional(),
+    token: z.string().optional(),
     reliability: z
       .object({
         watchdog: z
