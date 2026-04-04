@@ -76,6 +76,14 @@ export type CommandOptions = {
   input?: string;
   env?: NodeJS.ProcessEnv;
   windowsVerbatimArguments?: boolean;
+  /** Called with each stdout chunk as it arrives. */
+  onStdout?: (chunk: string) => void;
+  /**
+   * When false, stdout is not accumulated in the result — it is consumed
+   * entirely by the onStdout callback. result.stdout will be "".
+   * Defaults to true.
+   */
+  captureOutput?: boolean;
 };
 
 export async function runCommandWithTimeout(
@@ -134,7 +142,11 @@ export async function runCommandWithTimeout(
     }
 
     child.stdout?.on("data", (d) => {
-      stdout += d.toString();
+      const chunk = d.toString();
+      options.onStdout?.(chunk);
+      if (options.captureOutput !== false) {
+        stdout += chunk;
+      }
     });
     child.stderr?.on("data", (d) => {
       stderr += d.toString();

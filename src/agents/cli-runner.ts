@@ -26,6 +26,7 @@ import {
   writeCliImages,
 } from "./cli-runner/helpers.js";
 import { resolveOpenClawDocsPath } from "./docs-path.js";
+import { emitAgentEvent } from "../infra/agent-events.js";
 import { FailoverError, resolveFailoverStatus } from "./failover-error.js";
 import { classifyFailoverReason, isFailoverErrorMessage } from "./pi-embedded-helpers.js";
 import { redactRunIdentifier, resolveRunWorkspaceDir } from "./workspace-run.js";
@@ -233,14 +234,73 @@ export async function runCliAgent(params: {
         await cleanupResumeProcesses(backend, cliSessionIdToSend);
       }
 
+      const outputMode = useResume ? (backend.resumeOutput ?? backend.output) : backend.output;
+      const isJsonlMode = outputMode === "jsonl";
+      const streamedChunks: string[] = [];
+      let stdoutBuffer = "";
+      const onStdoutStream = isJsonlMode
+        ? (chunk: string): void => {
+            stdoutBuffer += chunk;
+            const lines = stdoutBuffer.split(/\r?\n/g);
+            stdoutBuffer = lines.pop() ?? "";
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) {
+                continue;
+              }
+              streamedChunks.push(trimmed);
+              try {
+                const parsed: unknown = JSON.parse(trimmed);
+                if (
+                  parsed !== null &&
+                  typeof parsed === "object" &&
+                  !Array.isArray(parsed) &&
+                  (parsed as Record<string, unknown>).type === "assistant"
+                ) {
+                  const message = (parsed as Record<string, unknown>).message;
+                  if (
+                    message !== null &&
+                    typeof message === "object" &&
+                    !Array.isArray(message)
+                  ) {
+                    const content = (message as Record<string, unknown>).content;
+                    if (Array.isArray(content)) {
+                      for (const block of content) {
+                        if (
+                          block !== null &&
+                          typeof block === "object" &&
+                          !Array.isArray(block) &&
+                          (block as Record<string, unknown>).type === "text" &&
+                          typeof (block as Record<string, unknown>).text === "string"
+                        ) {
+                          emitAgentEvent({
+                            runId: params.runId,
+                            stream: "assistant",
+                            data: { text: (block as Record<string, unknown>).text as string },
+                          });
+                        }
+                      }
+                    }
+                  }
+                }
+              } catch {
+                // ignore malformed JSON lines
+              }
+            }
+          }
+        : undefined;
+
       const result = await runCommandWithTimeout([backend.command, ...args], {
         timeoutMs: params.timeoutMs,
         cwd: workspaceDir,
         env,
         input: stdinPayload,
+        ...(onStdoutStream ? { captureOutput: false, onStdout: onStdoutStream } : {}),
       });
 
-      const stdout = result.stdout.trim();
+      const stdout = onStdoutStream
+        ? [...streamedChunks, stdoutBuffer.trim()].filter(Boolean).join("\n")
+        : result.stdout.trim();
       const stderr = result.stderr.trim();
       if (logOutputText) {
         if (stdout) {
@@ -270,8 +330,6 @@ export async function runCliAgent(params: {
           status,
         });
       }
-
-      const outputMode = useResume ? (backend.resumeOutput ?? backend.output) : backend.output;
 
       if (outputMode === "text") {
         return { text: stdout, sessionId: undefined };
