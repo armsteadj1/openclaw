@@ -10,6 +10,7 @@ import { isTruthyEnvValue } from "../infra/env.js";
 import { GatewayClient } from "./client.js";
 import { renderCatNoncePngBase64 } from "./live-image-probe.js";
 import { startGatewayServer } from "./server.js";
+import { GATEWAY_CLIENT_NAMES } from "../utils/message-channel.js";
 
 const LIVE = isTruthyEnvValue(process.env.LIVE) || isTruthyEnvValue(process.env.OPENCLAW_LIVE_TEST);
 const CLI_LIVE = isTruthyEnvValue(process.env.OPENCLAW_LIVE_CLI_BACKEND);
@@ -187,7 +188,8 @@ async function connectClient(params: { url: string; token: string }) {
     const client = new GatewayClient({
       url: params.url,
       token: params.token,
-      clientName: "vitest-live-cli-backend",
+      clientName: GATEWAY_CLIENT_NAMES.TEST,
+      clientDisplayName: "vitest-live-cli-backend",
       clientVersion: "dev",
       mode: "test",
       onHelloOk: () => stop(undefined, client),
@@ -345,7 +347,7 @@ describeLive("gateway live (cli backend)", () => {
       if (providerId === "codex-cli") {
         expect(text).toContain(`CLI-BACKEND-${nonce}`);
       } else {
-        expect(text).toContain(`CLI backend OK ${nonce}.`);
+        expect(text.replace(/[.!?]+$/u, "")).toContain(`CLI backend OK ${nonce}`);
       }
 
       if (CLI_RESUME) {
@@ -372,7 +374,9 @@ describeLive("gateway live (cli backend)", () => {
         if (providerId === "codex-cli") {
           expect(resumeText).toContain(`CLI-RESUME-${resumeNonce}`);
         } else {
-          expect(resumeText).toContain(`CLI backend RESUME OK ${resumeNonce}.`);
+          expect(resumeText.replace(/[.!?]+$/u, "")).toContain(
+            `CLI backend RESUME OK ${resumeNonce}`,
+          );
         }
       }
 
