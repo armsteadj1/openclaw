@@ -1,4 +1,5 @@
 import { shouldLogVerbose } from "../../globals.js";
+import { emitAgentEvent } from "../../infra/agent-events.js";
 import { isTruthyEnvValue } from "../../infra/env.js";
 import { requestHeartbeatNow as requestHeartbeatNowImpl } from "../../infra/heartbeat-wake.js";
 import { sanitizeHostExecEnv } from "../../infra/host-env-security.js";
@@ -186,6 +187,42 @@ export async function executePreparedCliRun(
         cliSessionId: useResume ? resolvedSessionId : undefined,
       });
 
+      const streamedChunks: string[] = [];
+      let stdoutBuffer = "";
+      const isJsonlMode =
+        (useResume ? (backend.resumeOutput ?? backend.output) : backend.output) === "jsonl";
+      const onStdoutStream = isJsonlMode
+        ? (chunk: string) => {
+            stdoutBuffer += chunk;
+            const lines = stdoutBuffer.split(/\r?\n/g);
+            stdoutBuffer = lines.pop() ?? "";
+            for (const line of lines) {
+              const trimmed = line.trim();
+              if (!trimmed) continue;
+              streamedChunks.push(trimmed);
+              try {
+                const parsed = JSON.parse(trimmed) as {
+                  type?: string;
+                  message?: { content?: Array<{ type?: string; text?: string }> };
+                };
+                if (parsed.type === "assistant" && parsed.message?.content) {
+                  for (const block of parsed.message.content) {
+                    if (block.type === "text" && block.text && params.runId) {
+                      emitAgentEvent({
+                        runId: params.runId,
+                        stream: "assistant",
+                        data: { text: block.text },
+                      });
+                    }
+                  }
+                }
+              } catch {
+                // Ignore malformed lines; they'll still be collected in streamedChunks
+              }
+            }
+          }
+        : undefined;
+
       const managedRun = await supervisor.spawn({
         sessionId: params.sessionId,
         backendId: context.backendResolved.id,
@@ -198,10 +235,14 @@ export async function executePreparedCliRun(
         cwd: context.workspaceDir,
         env,
         input: stdinPayload,
+        ...(onStdoutStream ? { captureOutput: false, onStdout: onStdoutStream } : {}),
       });
       const result = await managedRun.wait();
 
-      const stdout = result.stdout.trim();
+      // When captureOutput is false, result.stdout is empty — reconstruct from streamed chunks.
+      const stdout = onStdoutStream
+        ? [...streamedChunks, stdoutBuffer.trim()].filter(Boolean).join("\n")
+        : result.stdout.trim();
       const stderr = result.stderr.trim();
       if (logOutputText) {
         if (stdout) {
