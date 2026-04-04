@@ -26,6 +26,7 @@ import {
 } from "./openai-responses-payload-policy.js";
 import { resolveProviderRequestCapabilities } from "./provider-attribution.js";
 import { buildGuardedModelFetch } from "./provider-transport-fetch.js";
+import { stripSystemPromptCacheBoundary } from "./system-prompt-cache-boundary.js";
 import { transformTransportMessages } from "./transport-message-transform.js";
 import { sanitizeTransportPayloadText } from "./transport-stream-shared.js";
 
@@ -222,7 +223,7 @@ function convertResponsesMessages(
   if (includeSystemPrompt && context.systemPrompt) {
     messages.push({
       role: model.reasoning && options?.supportsDeveloperRole !== false ? "developer" : "system",
-      content: sanitizeTransportPayloadText(context.systemPrompt),
+      content: sanitizeTransportPayloadText(stripSystemPromptCacheBoundary(context.systemPrompt)),
     });
   }
   let msgIndex = 0;
