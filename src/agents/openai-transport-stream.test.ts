@@ -653,6 +653,31 @@ describe("openai transport stream", () => {
     expect(params.messages?.[0]).toMatchObject({ role: "system" });
   });
 
+  it("strips the internal cache boundary from OpenAI completions system prompts", () => {
+    const params = buildOpenAICompletionsParams(
+      {
+        id: "gpt-4.1",
+        name: "GPT-4.1",
+        api: "openai-completions",
+        provider: "openai",
+        baseUrl: "https://api.openai.com/v1",
+        reasoning: false,
+        input: ["text"],
+        cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+        contextWindow: 200000,
+        maxTokens: 8192,
+      } satisfies Model<"openai-completions">,
+      {
+        systemPrompt: `Stable prefix${SYSTEM_PROMPT_CACHE_BOUNDARY}Dynamic suffix`,
+        messages: [],
+        tools: [],
+      } as never,
+      undefined,
+    ) as { messages?: Array<{ content?: string }> };
+
+    expect(params.messages?.[0]?.content).toBe("Stable prefix\nDynamic suffix");
+  });
+
   it("uses system role and streaming usage compat for native ModelStudio completions providers", () => {
     const params = buildOpenAICompletionsParams(
       {

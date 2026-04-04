@@ -1227,9 +1227,15 @@ export function buildOpenAICompletionsParams(
   options: OpenAICompletionsOptions | undefined,
 ) {
   const compat = getCompat(model);
+  const completionsContext = context.systemPrompt
+    ? {
+        ...context,
+        systemPrompt: stripSystemPromptCacheBoundary(context.systemPrompt),
+      }
+    : context;
   const params: Record<string, unknown> = {
     model: model.id,
-    messages: convertMessages(model as never, context, compat as never),
+    messages: convertMessages(model as never, completionsContext, compat as never),
     stream: true,
   };
   if (compat.supportsUsageInStreaming) {
