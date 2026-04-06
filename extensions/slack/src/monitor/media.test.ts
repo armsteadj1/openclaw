@@ -4,6 +4,7 @@ import type { SavedMedia } from "openclaw/plugin-sdk/media-runtime";
 import * as mediaStore from "openclaw/plugin-sdk/media-runtime";
 import { type FetchMock, withFetchPreconnect } from "openclaw/plugin-sdk/testing";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TEST_UNDICI_RUNTIME_DEPS_KEY } from "../../../../src/infra/net/undici-runtime.js";
 import { mockPinnedHostnameResolution } from "../../../../src/test-helpers/ssrf.js";
 import {
   fetchWithSlackAuth,
@@ -15,6 +16,26 @@ import {
 // Store original fetch
 const originalFetch = globalThis.fetch;
 let mockFetch: ReturnType<typeof vi.fn<FetchMock>>;
+
+function installMockRuntimeFetch(): void {
+  class MockAgent {
+    constructor(readonly options: unknown) {}
+  }
+  class MockEnvHttpProxyAgent {
+    constructor(readonly options: unknown) {}
+  }
+  class MockProxyAgent {
+    constructor(readonly options: unknown) {}
+  }
+
+  (globalThis as Record<string, unknown>)[TEST_UNDICI_RUNTIME_DEPS_KEY] = {
+    Agent: MockAgent,
+    EnvHttpProxyAgent: MockEnvHttpProxyAgent,
+    ProxyAgent: MockProxyAgent,
+    fetch: mockFetch,
+  };
+}
+
 const createSavedMedia = (filePath: string, contentType: string): SavedMedia => ({
   id: "saved-media-id",
   path: filePath,
@@ -175,11 +196,13 @@ describe("resolveSlackMedia", () => {
   beforeEach(() => {
     mockFetch = vi.fn();
     globalThis.fetch = withFetchPreconnect(mockFetch);
+    installMockRuntimeFetch();
     mockPinnedHostnameResolution();
   });
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    Reflect.deleteProperty(globalThis as object, TEST_UNDICI_RUNTIME_DEPS_KEY);
     vi.restoreAllMocks();
   });
 
@@ -551,6 +574,7 @@ describe("resolveSlackAttachmentContent", () => {
   beforeEach(() => {
     mockFetch = vi.fn();
     globalThis.fetch = withFetchPreconnect(mockFetch);
+    installMockRuntimeFetch();
     vi.spyOn(ssrf, "resolvePinnedHostnameWithPolicy").mockImplementation(async (hostname) => {
       const normalized = hostname.trim().toLowerCase().replace(/\.$/, "");
       const addresses = ["93.184.216.34"];
@@ -564,6 +588,7 @@ describe("resolveSlackAttachmentContent", () => {
 
   afterEach(() => {
     globalThis.fetch = originalFetch;
+    Reflect.deleteProperty(globalThis as object, TEST_UNDICI_RUNTIME_DEPS_KEY);
     vi.restoreAllMocks();
   });
 

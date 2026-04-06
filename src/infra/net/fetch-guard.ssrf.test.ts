@@ -434,6 +434,54 @@ describe("fetchWithSsrFGuard hardening", () => {
     }
   });
 
+  it("preserves custom fetchImpls that opt out of per-request dispatchers", async () => {
+    const runtimeFetch = vi.fn(async () => okResponse());
+    const originalGlobalFetch = globalThis.fetch;
+    let wrappedFetchCalls = 0;
+    const wrappedFetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      wrappedFetchCalls += 1;
+      expect((init as RequestInit & { dispatcher?: unknown } | undefined)?.dispatcher).toBeUndefined();
+      return okResponse();
+    }) as typeof fetch & { supportsDispatcherInit?: boolean };
+    wrappedFetch.supportsDispatcherInit = false;
+
+    class MockAgent {
+      constructor(readonly options: unknown) {}
+    }
+    class MockEnvHttpProxyAgent {
+      constructor(readonly options: unknown) {}
+    }
+    class MockProxyAgent {
+      constructor(readonly options: unknown) {}
+    }
+
+    (globalThis as Record<string, unknown>).fetch = wrappedFetch as typeof fetch;
+    (globalThis as Record<string, unknown>)[TEST_UNDICI_RUNTIME_DEPS_KEY] = {
+      Agent: MockAgent,
+      EnvHttpProxyAgent: MockEnvHttpProxyAgent,
+      ProxyAgent: MockProxyAgent,
+      fetch: runtimeFetch,
+    };
+
+    try {
+      const customFetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) =>
+        await wrappedFetch(input, init)) as typeof fetch & { supportsDispatcherInit?: boolean };
+      customFetchImpl.supportsDispatcherInit = false;
+
+      const result = await fetchWithSsrFGuard({
+        url: "https://public.example/resource",
+        fetchImpl: customFetchImpl,
+        lookupFn: createPublicLookup(),
+      });
+
+      expect(runtimeFetch).toHaveBeenCalledTimes(0);
+      expect(wrappedFetchCalls).toBe(1);
+      await result.release();
+    } finally {
+      (globalThis as Record<string, unknown>).fetch = originalGlobalFetch;
+    }
+  });
+
   it("keeps explicit proxy transport policy when DNS pinning is disabled", async () => {
     const lookupFn = createPublicLookup();
     (globalThis as Record<string, unknown>)[TEST_UNDICI_RUNTIME_DEPS_KEY] = {

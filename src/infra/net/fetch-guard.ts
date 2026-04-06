@@ -164,6 +164,10 @@ function isRedirectStatus(status: number): boolean {
   return status === 301 || status === 302 || status === 303 || status === 307 || status === 308;
 }
 
+type DispatcherSupportAnnotatedFetch = FetchLike & {
+  supportsDispatcherInit?: boolean;
+};
+
 function isAmbientGlobalFetch(params: {
   fetchImpl: FetchLike | undefined;
   globalFetch: FetchLike | undefined;
@@ -172,6 +176,23 @@ function isAmbientGlobalFetch(params: {
     typeof params.fetchImpl === "function" &&
     typeof params.globalFetch === "function" &&
     params.fetchImpl === params.globalFetch
+  );
+}
+
+function isCustomFetchImpl(params: {
+  fetchImpl: FetchLike | undefined;
+  globalFetch: FetchLike | undefined;
+}): boolean {
+  return typeof params.fetchImpl === "function" && !isAmbientGlobalFetch(params);
+}
+
+function supportsPerRequestDispatcher(params: {
+  fetchImpl: FetchLike | undefined;
+  globalFetch: FetchLike | undefined;
+}): boolean {
+  return (
+    isCustomFetchImpl(params) &&
+    (params.fetchImpl as DispatcherSupportAnnotatedFetch).supportsDispatcherInit !== false
   );
 }
 
@@ -294,25 +315,28 @@ export async function fetchWithSsrFGuard(params: GuardedFetchOptions): Promise<G
         dispatcher = createPinnedDispatcher(pinned, params.dispatcherPolicy, params.policy);
       }
 
+      const canUseCustomFetchWithDispatcher = supportsPerRequestDispatcher({
+        fetchImpl: params.fetchImpl,
+        globalFetch: globalThis.fetch,
+      });
+      const hasCustomFetchImpl = isCustomFetchImpl({
+        fetchImpl: params.fetchImpl,
+        globalFetch: globalThis.fetch,
+      });
+      const shouldAttachDispatcher = canUseCustomFetchWithDispatcher || !hasCustomFetchImpl;
       const init: DispatcherAwareRequestInit = {
         ...(currentInit ? { ...currentInit } : {}),
         redirect: "manual",
-        ...(dispatcher ? { dispatcher } : {}),
+        ...(shouldAttachDispatcher && dispatcher ? { dispatcher } : {}),
         ...(signal ? { signal } : {}),
       };
 
-      const supportsDispatcherInit =
-        (params.fetchImpl !== undefined &&
-          !isAmbientGlobalFetch({
-            fetchImpl: params.fetchImpl,
-            globalFetch: globalThis.fetch,
-          })) ||
-        isMockedFetch(defaultFetch);
+      const supportsDispatcherInit = canUseCustomFetchWithDispatcher || isMockedFetch(defaultFetch);
       // Explicit caller stubs and test-installed fetch mocks should win.
       // Otherwise, fall back to undici's fetch whenever we attach a dispatcher,
       // because the default global fetch path will not honor per-request
       // dispatchers.
-      const shouldUseRuntimeFetch = Boolean(dispatcher) && !supportsDispatcherInit;
+      const shouldUseRuntimeFetch = Boolean(dispatcher) && !hasCustomFetchImpl && !supportsDispatcherInit;
       const response = shouldUseRuntimeFetch
         ? await fetchWithRuntimeDispatcher(parsedUrl.toString(), init)
         : await defaultFetch(parsedUrl.toString(), init);

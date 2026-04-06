@@ -40,7 +40,7 @@ function assertSlackFileUrl(rawUrl: string): URL {
 
 function createSlackMediaFetch(token: string): FetchLike {
   let includeAuth = true;
-  return async (input, init) => {
+  const fetchImpl: FetchLike & { supportsDispatcherInit?: boolean } = async (input, init) => {
     const url = resolveRequestUrl(input);
     if (!url) {
       throw new Error("Unsupported fetch input: expected string, URL, or Request");
@@ -58,6 +58,8 @@ function createSlackMediaFetch(token: string): FetchLike {
     headers.delete("Authorization");
     return fetch(url, { ...rest, headers, redirect: "manual" });
   };
+  fetchImpl.supportsDispatcherInit = false;
+  return fetchImpl;
 }
 
 /**
