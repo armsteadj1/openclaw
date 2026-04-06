@@ -288,6 +288,57 @@ describe("slack prepareSlackMessage inbound contract", () => {
     expect(prepared!.ctxPayload.RawBody).toContain("[Slack file: file]");
   });
 
+  it("hydrates inbound Slack files via files.info when message payload omits private URLs", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response('{"log":{"entries":[]}}', {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const slackCtx = createInboundSlackCtx({
+        cfg: {
+          channels: { slack: { enabled: true } },
+        } as OpenClawConfig,
+        appClient: {
+          files: {
+            info: vi.fn(async () => ({
+              file: {
+                id: "F123",
+                name: "healthequityhar",
+                mimetype: "application/json",
+                url_private_download:
+                  "https://files.slack.com/files-pri/T1-F123/download/healthequityhar",
+              },
+            })),
+          },
+        } as App["client"],
+      });
+      // oxlint-disable-next-line typescript/no-explicit-any
+      slackCtx.resolveUserName = async () => ({ name: "Alice" }) as any;
+
+      const prepared = await prepareMessageWith(
+        slackCtx,
+        defaultAccount,
+        createSlackMessage({
+          text: "",
+          files: [{ id: "F123", name: "healthequityhar" }],
+        }),
+      );
+
+      expect(prepared).toBeTruthy();
+      expect(prepared!.ctxPayload.RawBody).toContain("[Slack file:");
+      expect(prepared!.ctxPayload.RawBody).toContain("healthequityhar");
+      expect(prepared!.ctxPayload.MediaPath).toBeTruthy();
+      expect(fetchMock).toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("extracts attachment text for bot messages with empty text when allowBots is true (#27616)", async () => {
     const slackCtx = createInboundSlackCtx({
       cfg: {

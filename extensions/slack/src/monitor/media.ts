@@ -183,6 +183,43 @@ async function mapLimit<T, R>(
   return results;
 }
 
+async function hydrateSlackFileForDownload(params: {
+  file: SlackFile;
+  client?: SlackWebClient;
+}): Promise<SlackFile> {
+  const { file, client } = params;
+  if (file.url_private_download || file.url_private || !file.id || !client) {
+    return file;
+  }
+  try {
+    const info = (await client.files.info({ file: file.id })) as {
+      file?: {
+        id?: string;
+        name?: string;
+        mimetype?: string;
+        url_private?: string;
+        url_private_download?: string;
+        subtype?: string;
+      };
+    };
+    const hydrated = info.file;
+    if (!hydrated) {
+      return file;
+    }
+    return {
+      ...file,
+      id: hydrated.id ?? file.id,
+      name: hydrated.name ?? file.name,
+      mimetype: hydrated.mimetype ?? file.mimetype,
+      url_private: hydrated.url_private ?? file.url_private,
+      url_private_download: hydrated.url_private_download ?? file.url_private_download,
+      subtype: hydrated.subtype ?? file.subtype,
+    };
+  } catch {
+    return file;
+  }
+}
+
 /**
  * Downloads all files attached to a Slack message and returns them as an array.
  * Returns `null` when no files could be downloaded.
@@ -191,6 +228,7 @@ export async function resolveSlackMedia(params: {
   files?: SlackFile[];
   token: string;
   maxBytes: number;
+  client?: SlackWebClient;
 }): Promise<SlackMediaResult[] | null> {
   const files = params.files ?? [];
   const limitedFiles =
@@ -199,7 +237,11 @@ export async function resolveSlackMedia(params: {
   const resolved = await mapLimit<SlackFile, SlackMediaResult | null>(
     limitedFiles,
     MAX_SLACK_MEDIA_CONCURRENCY,
-    async (file) => {
+    async (rawFile) => {
+      const file = await hydrateSlackFileForDownload({
+        file: rawFile,
+        client: params.client,
+      });
       const url = file.url_private_download ?? file.url_private;
       if (!url) {
         return null;
@@ -262,6 +304,7 @@ export async function resolveSlackAttachmentContent(params: {
   attachments?: SlackAttachment[];
   token: string;
   maxBytes: number;
+  client?: SlackWebClient;
 }): Promise<{ text: string; media: SlackMediaResult[] } | null> {
   const attachments = params.attachments;
   if (!attachments || attachments.length === 0) {
@@ -320,6 +363,7 @@ export async function resolveSlackAttachmentContent(params: {
         files: att.files,
         token: params.token,
         maxBytes: params.maxBytes,
+        client: params.client,
       });
       if (fileMedia) {
         allMedia.push(...fileMedia);
